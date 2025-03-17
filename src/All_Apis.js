@@ -1,5 +1,5 @@
-// const BaseUrl = "https://socialappbackend-n15j.onrender.com/"
-const BaseUrl = "http://localhost:4000/"
+const BaseUrl = "https://socialappbackend-n15j.onrender.com/"
+// const BaseUrl = "http://localhost:4000/"
 
 
 export const Apis = {

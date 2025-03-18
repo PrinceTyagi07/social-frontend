@@ -142,7 +142,7 @@ const Signup = () => {
 
         if (result.success) {
           console.log("Signup successful", result);
-          navigate("/login");
+          navigate("/");
         } else {
           setMessage(result.message || "Signup failed. Try again.");
         }

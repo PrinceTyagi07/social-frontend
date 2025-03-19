@@ -39,7 +39,7 @@ const Feedpage = () => {
 
                 `https://socialappbackend-n15j.onrender.com/api/v1/post/getAllCommentsLike/${id}`
               );
-              // console.log("post",post)
+              console.log("post",post)
               return commentLikeResponse.data.data;
             } catch (error) {
               console.error(`Error fetching comments and likes for ID ${id}:`, error);
@@ -137,7 +137,7 @@ const Feedpage = () => {
               <p>{post.creatorId.username}</p>
             </div>
             <img className="w-full rounded-md" src={post.postUrl} alt="" />
-
+             <div className=""><p className="">{post.description}</p></div>
             <div className="flex gap-4 items-center text-2xl mt-2">
               <span
                 className={`cursor-pointer ${likedPosts[post._id] ? "text-red-500" : "text-gray-600"}`}

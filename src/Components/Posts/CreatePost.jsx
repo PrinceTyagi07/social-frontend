@@ -58,10 +58,10 @@ const CreatePost = () => {
     const handleCreatePost = async () => {
         if (!validate()) return;
 
-        if (userType !== "Visitor") {
-            alert("Unauthorized: Only Visitors can create posts");
-            return;
-        }
+        // if (userType !== "Visitor") {
+        //     alert("Unauthorized: Only Visitors can create posts");
+        //     return;
+        // }
 
         const formData = new FormData();
         formData.append("description", description);

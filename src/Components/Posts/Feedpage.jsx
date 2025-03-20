@@ -5,6 +5,7 @@ import { FaHandHoldingHeart, FaPaperPlane } from "react-icons/fa6";
 import { LiaCommentsSolid } from "react-icons/lia";
 import { Apis } from "../../All_Apis";
 import { jwtDecode } from "jwt-decode";
+import { FaUserCircle } from "react-icons/fa";
 
 const { togglelike, createComment } = Apis;
 
@@ -131,12 +132,22 @@ const Feedpage = () => {
       <div className="space-y-6">
         
         {posts.map((post) => (
-          <div key={post._id} className="rounded gap-2 flex flex-col relative">
+          <div key={post._id} className="  p-3 rounded gap-2 flex flex-col relative">
+            <p className="flex  items-center w-fit  justify-start gap-2 "><span className="rounded-full  overflow-hidden h-[40px] w-[40px]">
+              <img src={post.creatorId.image} alt="" />
+            </span>
+              {post.creatorId.username}</p>
             <div className="flex items-center gap-2">
-              <img className="w-[30px] h-[30px] rounded-full" src={post.creatorId.image} alt="" />
-              <p>{post.creatorId.username}</p>
+            {/* Media Handling (Image or Video) */}
+            {post.postUrl.includes(".mp4") || post.postUrl.includes(".webm") ? (
+              <video className="w-full rounded-md" src={post.postUrl} controls />
+            ) : (
+              <img className="w-full rounded-md" src={post.postUrl} alt="Post" />
+            )}
+
+  
             </div>
-            <img className="w-full rounded-md" src={post.postUrl} alt="" />
+
              <div className=""><p className="">{post.description}</p></div>
             <div className="flex gap-4 items-center text-2xl mt-2">
               <span
@@ -175,9 +186,11 @@ const Feedpage = () => {
                 </div>
               </div>
             )}
+            <div className="w-8[vw] mt-5 h-[1px] bg-black"></div>
           </div>
         ))}
       </div>
+
     </div>
   );
 };

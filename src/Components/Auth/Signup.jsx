@@ -1,195 +1,183 @@
-import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useState, useEffect } from "react";
 import Verifyotp from "./Verifyotp";
+import VideoKYC from "./VideoKYC";
+import { sendOTP, verifyOTPWithBackend } from "./otpService";
+import { useNavigate } from "react-router-dom";
 import { Apis } from "../../All_Apis";
 
-const { signupApi, otpApi } = Apis;
+const { signupApi } = Apis;
 
 const Signup = () => {
   const navigate = useNavigate();
-  const [message, setMessage] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [otp, setOtp] = useState("");
-  const [errors, setErrors] = useState({});
-  const [openOtpField, setOpenOtpField] = useState(false);
-  const [closeOtpButton, setCloseOtpButton] = useState(false);
-
-  const [formData, setFormData] = useState({
+  const [step, setStep] = useState(1);
+  const [userData, setUserData] = useState({
     firstName: "",
     lastName: "",
     username: "",
     email: "",
     password: "",
     confirmPassword: "",
-    accountType: "Visitor",
-    contactNumber: "",
     aadhaarNumber: "",
+    phone: "",
+    accountType: "Visitor" // Added missing required field
   });
+  const [otpSent, setOtpSent] = useState(false);
+  const [backendOTP, setBackendOTP] = useState(null);
+  const [otpVerified, setOtpVerified] = useState(false);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const handleChange = (e) => {
+  useEffect(() => {
+    if (step === 4) {
+      navigate("/login");
+    }
+  }, [step, navigate]);
+
+  const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prevData) => ({
-      ...prevData,
-      [name]: value,
-    }));
+    setUserData(prev => ({ ...prev, [name]: value }));
   };
 
-  const verifyOTP = (newOTP) => {
-    setOtp(newOTP);
-  };
+  const handleSendOTP = async () => {
+    const { email, phone, aadhaarNumber, password, confirmPassword } = userData;
 
-  const validate = () => {
-    let isValid = true;
-    const newErrors = {};
-
-    if (!formData.firstName.trim()) {
-      newErrors.firstName = "First name is required.";
-      isValid = false;
+    if (!email || !phone || !aadhaarNumber || !password || !confirmPassword) {
+      setError("Please fill in all required fields.");
+      return;
     }
 
-    if (!formData.lastName.trim()) {
-      newErrors.lastName = "Last name is required.";
-      isValid = false;
+    if (password !== confirmPassword) {
+      setError("Passwords do not match.");
+      return;
     }
 
-    if (!formData.username.trim()) {
-      newErrors.username = "Username is required.";
-      isValid = false;
-    }
-
-    if (!formData.email || !/\S+@\S+\.\S+/.test(formData.email)) {
-      newErrors.email = "Valid email is required.";
-      isValid = false;
-    }
-
-    if (!formData.password || formData.password.length < 6) {
-      newErrors.password = "Password must be at least 6 characters long.";
-      isValid = false;
-    }
-
-    if (!formData.confirmPassword) {
-      newErrors.confirmPassword = "Confirm Password is required.";
-      isValid = false;
-    } else if (formData.password !== formData.confirmPassword) {
-      newErrors.confirmPassword = "Passwords do not match.";
-      isValid = false;
-    }
-
-    if (!formData.contactNumber || !/^\d{10}$/.test(formData.contactNumber)) {
-      newErrors.contactNumber = "Contact number must be 10 digits.";
-      isValid = false;
-    }
-
-    if (!formData.aadhaarNumber || !/^\d{12}$/.test(formData.aadhaarNumber)) {
-      newErrors.aadhaarNumber = "Aadhaar number must be 12 digits.";
-      isValid = false;
-    }
-
-    setErrors(newErrors);
-    return isValid;
-  };
-
-  const sendOTP = async () => {
-    if (!validate()) return;
-    setCloseOtpButton(true);
-    setOpenOtpField(true);
+    setError("");
     setLoading(true);
-    setMessage("");
 
     try {
-      const response = await fetch(otpApi, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: formData.email }),
-      });
-
-      const result = await response.json();
-
-      if (response.ok) {
-        setMessage("OTP sent successfully! Check your email.");
+      const result = await sendOTP({ email, phone });
+      if (result.success) {
+        setOtpSent(true);
+        setBackendOTP(result.otp);
+        setStep(2);
       } else {
-        setMessage(result.message || "Failed to send OTP. Try again.");
+        setError(result.message || "Failed to send OTP.");
       }
-    } catch (error) {
-      setMessage("Something went wrong. Please try again.");
-      console.error("Error sending OTP:", error);
+    } catch (err) {
+      console.error(err);
+      setError("Something went wrong while sending OTP.");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-
-    if (validate()) {
-      try {
-        if (!otp) {
-          setMessage("Please enter OTP before signing up.");
-          return;
-        }
-
-        const SignUpdata = { ...formData, otp };
-        console.log(SignUpdata);
-
-        const response = await fetch(signupApi, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(SignUpdata),
-        });
-
-        const result = await response.json();
-        console.log("Signup Response:", result);
-
-        if (result.success) {
-          console.log("Signup successful", result);
-          navigate("/login");
-        } else {
-          setMessage(result.message || "Signup failed. Try again.");
-        }
-      } catch (error) {
-        console.error("Error submitting form:", error);
+  const handleVerifyOTP = async (otp) => {
+    setLoading(true);
+    try {
+      const result = await verifyOTPWithBackend({ otp, sentOtp: backendOTP });
+      if (result.success) {
+        setOtpVerified(true);
+        setStep(3);
+        setError("");
+      } else {
+        setError("Invalid OTP");
       }
+    } catch (err) {
+      console.error(err);
+      setError("Something went wrong during OTP verification.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleKycComplete = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch(signupApi, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          ...userData,
+          otp: backendOTP // Include the verified OTP
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Failed to complete signup");
+      }
+
+      if (response.status === 201) {
+        setStep(4);
+      } else {
+        setError(data.message || "Failed to complete signup.");
+      }
+    } catch (err) {
+      console.error("Signup error:", err);
+      setError(err.message || "Error saving data.");
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div className="max-w-md mx-auto p-6 border-gray-300 rounded-lg mt-7">
-      <h2 className="text-2xl font-bold text-center mb-4">Create a New Account</h2>
-      <form onSubmit={handleSubmit}>
-        <InputField label="First Name" name="firstName" value={formData.firstName} onChange={handleChange} error={errors.firstName} />
-        <InputField label="Last Name" name="lastName" value={formData.lastName} onChange={handleChange} error={errors.lastName} />
-        <InputField label="Username" name="username" value={formData.username} onChange={handleChange} error={errors.username} />
-        <InputField label="Email" name="email" value={formData.email} onChange={handleChange} error={errors.email} type="email" />
-        <InputField label="Password" name="password" value={formData.password} onChange={handleChange} error={errors.password} type="password" />
-        <InputField label="Confirm Password" name="confirmPassword" value={formData.confirmPassword} onChange={handleChange} error={errors.confirmPassword} type="password" />
-        <InputField label="Contact Number" name="contactNumber" value={formData.contactNumber} onChange={handleChange} error={errors.contactNumber} />
-        <InputField label="Aadhaar Number" name="aadhaarNumber" value={formData.aadhaarNumber} onChange={handleChange} error={errors.aadhaarNumber} />
+    <div className="max-w-md mx-auto mt-10 p-6 bg-white rounded shadow">
+      <h1 className="text-2xl font-bold mb-6 text-center">Signup</h1>
 
-        {!closeOtpButton && (
-          <button type="button" onClick={sendOTP} className="w-full py-2 mb-3 bg-gradient-to-r from-orange-500 to-red-500 text-white rounded-md transition-transform duration-200 hover:scale-95 active:scale-110">
-            Send OTP
+      {step === 1 && (
+        <>
+          {["firstName", "lastName", "username", "email", "password", "confirmPassword", "phone", "aadhaarNumber"].map((field) => (
+            <input
+              key={field}
+              type={
+                field === "password" || field === "confirmPassword"
+                  ? "password"
+                  : field === "email"
+                  ? "email"
+                  : "text"
+              }
+              name={field}
+              placeholder={
+                field === "confirmPassword"
+                  ? "Confirm Password"
+                  : field.charAt(0).toUpperCase() + field.slice(1)
+              }
+              value={userData[field]}
+              onChange={handleInputChange}
+              className="w-full mb-3 px-4 py-2 border rounded"
+            />
+          ))}
+          <button
+            onClick={handleSendOTP}
+            disabled={loading}
+            className="w-full bg-blue-600 text-white py-2 rounded disabled:bg-blue-300"
+          >
+            {loading ? "Sending..." : "Send OTP"}
           </button>
-        )}
+          {error && <p className="text-red-600 mt-2 text-sm">{error}</p>}
+        </>
+      )}
 
-        {openOtpField && (
-          <div>
-            <Verifyotp verifyOTP={verifyOTP} />
-            <button type="submit" className="w-full py-2 rounded-md bg-gradient-to-r from-orange-500 to-red-500 text-white font-semibold transition-transform duration-200 active:scale-110">
-              Sign Up
-            </button>
-          </div>
-        )}
-      </form>
+      {step === 2 && (
+        <>
+          <Verifyotp verifyOTP={handleVerifyOTP} loading={loading} />
+          {error && <p className="text-red-600 mt-2 text-sm">{error}</p>}
+        </>
+      )}
+
+      {step === 3 && <VideoKYC onComplete={handleKycComplete} loading={loading} />}
+
+      {step === 4 && (
+        <div className="text-center">
+          <h2 className="text-green-600 text-xl font-bold mb-4">Signup Successful!</h2>
+          <p className="text-sm">Thank you for verifying your identity.</p>
+        </div>
+      )}
     </div>
   );
 };
-
-const InputField = ({ label, name, value, onChange, error, type = "text" }) => (
-  <div className="mb-4">
-    <label className="block text-sm font-semibold">{label} <span className="text-red-600 text-lg">*</span></label>
-    <input type={type} name={name} value={value} onChange={onChange} className="w-full px-4 py-2 border border-gray-300 rounded-md" />
-    {error && <p className="text-red-500 text-sm">{error}</p>}
-  </div>
-);
 
 export default Signup;
